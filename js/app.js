@@ -24,12 +24,27 @@ const EMOJIS = ['📋','🎯','🛒','💡','📚','🏋️','🍕','✈️','�
 // ── DOM elemek ────────────────────────────────────
 const $ = id => document.getElementById(id);
 
+// ── Segéd: mobil-e? ──────────────────────────────
+function isMobile() {
+  return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 // ── Inicializálás ─────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initColorPicker();
   bindEvents();
   applyViewMode();
   registerServiceWorker();
+
+  // Redirect utáni eredmény kezelése (mobil Google bejelentkezés)
+  firebase.auth().getRedirectResult()
+    .then(result => {
+      // Ha volt redirect, az onAuthStateChanged automatikusan kezeli
+    })
+    .catch(() => {
+      $('login-error').classList.remove('hidden');
+      googleBtnReset();
+    });
 
   firebase.auth().onAuthStateChanged(user => {
     if (user) {
@@ -111,8 +126,14 @@ async function handleGoogleLogin() {
   const provider = new firebase.auth.GoogleAuthProvider();
 
   try {
-    // signInWithPopup – működik mobilon és asztali gépen egyaránt
-    await firebase.auth().signInWithPopup(provider);
+    if (isMobile()) {
+      // Mobilon: az oldal átirányít Google-ra, majd visszatér
+      // Az eredményt getRedirectResult() kezeli az oldalon
+      await firebase.auth().signInWithRedirect(provider);
+    } else {
+      // Asztali: popup ablak
+      await firebase.auth().signInWithPopup(provider);
+    }
   } catch {
     errEl.classList.remove('hidden');
     googleBtnReset();
