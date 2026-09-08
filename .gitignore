@@ -1,0 +1,8 @@
+﻿# IDE és rendszerfájlok
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+
+# Ha lokálisan tárolnád a saját configot, add hozzá:
+# js/firebase-config.local.js
