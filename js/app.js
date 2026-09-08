@@ -31,9 +31,31 @@ document.addEventListener('DOMContentLoaded', () => {
   applyViewMode();
   registerServiceWorker();
 
-  // Redirect utáni eredmény feldolgozása (iOS Google bejelentkezés)
-  handleRedirectResult();
+  // Mobil esetén: ha redirect után jöttünk vissza, feldolgozzuk az eredményt.
+  // Ez UTÁN fut az onAuthStateChanged, így a user már be van lépve.
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
+  if (isMobile) {
+    // Mobilon: redirect folyamat eredményének feldolgozása
+    firebase.auth().getRedirectResult()
+      .then(result => {
+        // Ha volt redirect-bejelentkezés, az auth state automatikusan frissül.
+        // Az onAuthStateChanged majd felkapja.
+      })
+      .catch(err => {
+        if (err && err.code && err.code !== 'auth/no-current-user') {
+          showView('login');
+          $('login-error').classList.remove('hidden');
+          googleBtnReset();
+          return;
+        }
+      })
+      .finally(() => {
+        // onAuthStateChanged kezeli a nézet váltást
+      });
+  }
+
+  // Ez mindig fut – eldönti melyik nézetet mutassuk
   firebase.auth().onAuthStateChanged(user => {
     if (user) {
       currentUser = user;
@@ -105,52 +127,35 @@ function googleBtnReset() {
   btn.innerHTML = GOOGLE_BTN_HTML;
 }
 
-// Redirect-alapú bejelentkezés eredményének kezelése (iOS / popup-blokkolt)
-function handleRedirectResult() {
-  firebase.auth().getRedirectResult()
-    .then(result => {
-      if (result && result.user) {
-        // siker – onAuthStateChanged kezeli tovább
-      }
-    })
-    .catch(err => {
-      // Csak valódi hibánál mutasd (nem az "nincs redirect" esetén)
-      if (err && err.code && err.code !== 'auth/no-current-user') {
-        $('login-error').classList.remove('hidden');
-        googleBtnReset();
-      }
-    });
-}
-
 function handleGoogleLogin() {
   const btn   = $('btn-google-login');
   const errEl = $('login-error');
 
   errEl.classList.add('hidden');
-  btn.disabled  = true;
-  btn.textContent = 'Bejelentkezés…';
+  btn.disabled    = true;
+  btn.textContent = 'Átirányítás…';
 
   const provider = new firebase.auth.GoogleAuthProvider();
-  const isIOS    = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-  if (isIOS) {
-    // iOS Safari blokkoja a popup-ot → redirect
+  if (isMobile) {
+    // Mobilon: redirect – az oldal átmegy a Google-ra, majd visszatér.
+    // Android Chrome nem támogat igazi popup-ot (új tabot nyit helyette).
+    // A visszatérés után getRedirectResult() + onAuthStateChanged kezeli.
     firebase.auth().signInWithRedirect(provider)
       .catch(() => { errEl.classList.remove('hidden'); googleBtnReset(); });
   } else {
-    // Android / asztali: popup (user gesture-ből hívjuk, nem blokkolódik)
+    // Asztali gépen: popup
     firebase.auth().signInWithPopup(provider)
-      .then(() => { /* onAuthStateChanged kezeli */ })
       .catch(err => {
         if (err.code === 'auth/popup-blocked') {
-          // Ha mégis blokkolnák: redirect fallback
           firebase.auth().signInWithRedirect(provider)
             .catch(() => { errEl.classList.remove('hidden'); googleBtnReset(); });
         } else if (err.code !== 'auth/popup-closed-by-user') {
           errEl.classList.remove('hidden');
           googleBtnReset();
         } else {
-          googleBtnReset(); // felhasználó bezárta → nincs hibaüzenet
+          googleBtnReset();
         }
       });
   }
