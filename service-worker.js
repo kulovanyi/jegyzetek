@@ -1,11 +1,11 @@
 ﻿/* ================================================
    service-worker.js – PWA offline támogatás
+   FONTOS: HTML fájlok mindig hálózatból töltődnek,
+   hogy a Firebase auth redirect működjön mobilon.
    ================================================ */
 
-const CACHE = 'jegyzetek-v1';
+const CACHE = 'jegyzetek-v2';
 const PRECACHE = [
-  './',
-  './index.html',
   './css/style.css',
   './js/app.js',
   './js/firebase-config.js',
@@ -14,7 +14,6 @@ const PRECACHE = [
   './icons/icon-512.png'
 ];
 
-// Telepítés: előzetes gyorsítótárazás
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
@@ -23,7 +22,6 @@ self.addEventListener('install', e => {
   );
 });
 
-// Aktiválás: régi cache törlése
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
@@ -34,18 +32,29 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Kérés kezelés: cache-first (Firebase hálózaton marad)
 self.addEventListener('fetch', e => {
   const url = e.request.url;
 
-  // Firebase és CDN kérések: csak hálózat
+  // Firebase, Google, CDN kérések: csak hálózat
   if (url.includes('googleapis.com') ||
       url.includes('gstatic.com') ||
       url.includes('firebaseio.com') ||
-      url.includes('firestore.googleapis.com')) {
+      url.includes('firebaseapp.com') ||
+      url.includes('accounts.google.com')) {
     return;
   }
 
+  // HTML oldalak: MINDIG hálózatból (Firebase redirect auth miatt!)
+  // Ha nincs net, akkor cache-ből
+  if (e.request.mode === 'navigate' ||
+      (e.request.method === 'GET' && e.request.headers.get('accept') || '').includes('text/html')) {
+    e.respondWith(
+      fetch(e.request).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Egyéb statikus fájlok (CSS, JS, képek): cache-first
   e.respondWith(
     caches.match(e.request)
       .then(cached => cached || fetch(e.request))
