@@ -99,34 +99,10 @@ body {
   margin-bottom: 10px;
 }
 
-/* === Google bejelentkezés gomb === */
-.btn-google {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
+/* === Belépés gomb === */
+.btn-full {
   width: 100%;
-  padding: 13px 20px;
-  background: #fff;
-  color: #3c4043;
-  border: 2px solid #dadce0;
-  border-radius: var(--radius-sm);
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--ease);
-  margin-bottom: 12px;
-  -webkit-appearance: none;
-}
-
-.btn-google:hover  { background: #f8f9fa; border-color: #bdc1c6; box-shadow: var(--shadow); }
-.btn-google:active { transform: scale(.97); }
-.btn-google:disabled { opacity: .65; cursor: not-allowed; }
-
-.google-icon {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
+  margin-top: 4px;
 }
 
 /* === Form === */
